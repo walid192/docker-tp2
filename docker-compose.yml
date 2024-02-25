@@ -1,0 +1,68 @@
+version: '3.7'
+services:
+
+  voting-app:
+    build: 
+      context: ./vote
+      dockerfile: Dockerfile
+    depends_on:
+      - redis
+    ports: 
+      - 5000:80
+    networks:
+      - front-tier
+      - back-tier
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: votingapp
+    healthcheck:
+      test: "./healthcheck:/postgres.sh"
+      interval: 10s
+    volumes: 
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - back-tier
+
+  redis:
+    image: redis:alpine
+    healthcheck:
+      test: "./healthcheck:/redis.sh"
+      interval: 10s
+    networks:
+      - back-tier
+
+  result-app:
+    build:
+      context: ./result
+      dockerfile: Dockerfile
+    entrypoint: nodemon --inspect=0.0.0.0 server.js
+    depends_on: 
+      - db
+    ports: 
+      - 5001:80
+    networks:
+      - front-tier
+      - back-tier
+
+  worker-app:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+      - redis
+    networks:
+      - back-tier
+
+volumes:
+  db-data:
+  postgres-data:
+
+
+networks:
+  front-tier:
+  back-tier:
